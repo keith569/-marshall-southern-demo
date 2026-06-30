@@ -281,17 +281,14 @@
       text-transform: uppercase;
     }
     .hero-title .accent { color: var(--accent); }
-    .hero-company-name {
-      font-family: var(--font-head);
-      font-size: clamp(4.5rem, 13vw, 11rem);
-      line-height: 0.88;
-      letter-spacing: 0.03em;
-      color: var(--white);
-      text-transform: uppercase;
-      margin-bottom: 1.2rem;
-      text-shadow: 0 6px 60px rgba(0,0,0,0.6);
+    .hero-logo-img {
+      width: min(420px, 85%);
+      height: auto;
+      display: block;
+      margin-bottom: 1.5rem;
+      border-radius: 10px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.08);
     }
-    .hero-company-name .co-accent { color: var(--accent); }
     .hero-categories {
       font-family: var(--font-cond);
       font-weight: 700;
@@ -1088,7 +1085,7 @@
   <div class="hero-accent-bar"></div>
   <div class="hero-content">
     <div class="hero-label">Queen Creek, AZ &nbsp;·&nbsp; Serving Arizona Since 1999</div>
-    <div class="hero-company-name">MARSHALL<br><span class="co-accent">SOUTHERN</span><br>INC.</div>
+    <img src="logo-full.png" alt="Marshall Southern Inc" class="hero-logo-img">
     <h1 class="hero-title">ARIZONA'S <span class="accent">SUPPLY</span> POWERHOUSE.</h1>
     <p class="hero-categories">Industrial Shipping Supplies &nbsp;·&nbsp; Janitorial &nbsp;·&nbsp; Bags &nbsp;·&nbsp; Office Supply &nbsp;·&nbsp; Corrugated Products &nbsp;·&nbsp; Tapes</p>
     <p class="hero-body">
