@@ -587,99 +587,6 @@
     .product-card-link svg { width: 14px; height: 14px; stroke: currentColor; fill: none; }
     .product-card:hover .product-card-link { opacity: 1; }
 
-    /* ── DEALS ── */
-    .deals {
-      padding: 6rem 0;
-      background: var(--dark-3);
-      position: relative;
-      overflow: hidden;
-    }
-    .deals::before {
-      content: 'DEALS';
-      position: absolute;
-      right: -2rem;
-      top: 50%;
-      transform: translateY(-50%);
-      font-family: var(--font-head);
-      font-size: 14rem;
-      color: rgba(37,99,235,0.04);
-      white-space: nowrap;
-      pointer-events: none;
-    }
-    .deals-container {
-      max-width: 1280px;
-      margin: 0 auto;
-      padding: 0 2rem;
-    }
-    .deals-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 1.25rem;
-      margin: 3rem 0;
-    }
-    .deal-card {
-      background: var(--dark-2);
-      border: 1px solid var(--dark-4);
-      border-radius: 4px;
-      padding: 2rem;
-      position: relative;
-      overflow: hidden;
-      transition: border-color 0.3s, transform 0.3s;
-    }
-    .deal-card:hover {
-      border-color: var(--accent);
-      transform: translateY(-4px);
-      box-shadow: 0 12px 40px rgba(37,99,235,0.15);
-    }
-    .deal-card::before {
-      content: '';
-      position: absolute;
-      top: 0; left: 0; right: 0;
-      height: 3px;
-      background: var(--accent);
-      transform: scaleX(0);
-      transform-origin: left;
-      transition: transform 0.3s;
-    }
-    .deal-card:hover::before { transform: scaleX(1); }
-    .deal-badge {
-      display: inline-block;
-      background: rgba(37,99,235,0.15);
-      border: 1px solid rgba(37,99,235,0.4);
-      color: var(--accent);
-      font-family: var(--font-cond);
-      font-weight: 700;
-      font-size: 0.7rem;
-      letter-spacing: 0.15em;
-      text-transform: uppercase;
-      padding: 0.25rem 0.75rem;
-      border-radius: 2px;
-      margin-bottom: 1rem;
-    }
-    .deal-card h3 {
-      font-family: var(--font-head);
-      font-size: 1.5rem;
-      color: var(--white);
-      letter-spacing: 0.03em;
-      margin-bottom: 0.5rem;
-    }
-    .deal-card p {
-      font-size: 0.88rem;
-      color: var(--muted);
-      line-height: 1.6;
-    }
-    .deal-icon {
-      width: 48px; height: 48px;
-      margin-bottom: 1.25rem;
-      background: rgba(37,99,235,0.1);
-      border-radius: 4px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-    .deal-icon svg { width: 24px; height: 24px; stroke: var(--accent); fill: none; stroke-width: 1.5; }
-    .deals-cta { text-align: center; }
-
     /* ── WHY ── */
     .why {
       padding: 6rem 0;
@@ -1072,7 +979,6 @@
     </button>
     <ul class="nav-links" id="navLinks">
       <li><a href="#products">Products</a></li>
-      <li><a href="#deals">Deals</a></li>
       <li><a href="#about">About</a></li>
       <li><a href="#quote">Contact</a></li>
       <li><a href="#quote" class="nav-cta">Get a Quote</a></li>
@@ -1253,52 +1159,6 @@
 </section>
 
 <!-- ══════════════════════════════════════
-     DEALS
-══════════════════════════════════════ -->
-<section class="deals" id="deals">
-  <div class="deals-container">
-    <div class="section-header">
-      <span class="section-tag">Hot Deals</span>
-      <h2>Current Deals <span class="text-accent">&amp; Specials</span></h2>
-      <p>We source aggressively so you save more. Ask us about bulk pricing, case discounts, and weekly specials.</p>
-    </div>
-    <div class="deals-grid">
-
-      <div class="deal-card">
-        <div class="deal-icon">
-          <svg viewBox="0 0 24 24"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
-        </div>
-        <div class="deal-badge">Bulk Savings</div>
-        <h3>CASE QUANTITY DISCOUNTS</h3>
-        <p>Order by the case on janitorial, packing, and bag lines and unlock tiered pricing that gets better the more you buy.</p>
-      </div>
-
-      <div class="deal-card">
-        <div class="deal-icon">
-          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-        </div>
-        <div class="deal-badge">Weekly Specials</div>
-        <h3>WEEKLY PRICING DROPS</h3>
-        <p>Every week we feature select products at below-market pricing. Call us Monday to find out what's on special this week.</p>
-      </div>
-
-      <div class="deal-card">
-        <div class="deal-icon">
-          <svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-        </div>
-        <div class="deal-badge">New Customers</div>
-        <h3>FIRST ORDER PRICING</h3>
-        <p>New to Marshall Southern? Let us earn your business. First-order customers get our sharpest pricing — guaranteed.</p>
-      </div>
-
-    </div>
-    <div class="deals-cta">
-      <a href="tel:+14802178544" class="btn btn-primary">CALL FOR TODAY'S PRICING — 480-217-8544</a>
-    </div>
-  </div>
-</section>
-
-<!-- ══════════════════════════════════════
      WHY MSI
 ══════════════════════════════════════ -->
 <section class="why" id="about">
@@ -1474,7 +1334,6 @@
       <h4>Company</h4>
       <ul>
         <li><a href="#about">About Us</a></li>
-        <li><a href="#deals">Deals &amp; Specials</a></li>
         <li><a href="#quote">Get a Quote</a></li>
         <li><a href="#quote">Contact Us</a></li>
       </ul>
