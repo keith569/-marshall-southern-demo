@@ -230,11 +230,10 @@
     .hero-overlay {
       position: absolute;
       inset: 0;
-      background: linear-gradient(
-        105deg,
-        rgba(8,13,26,0.92) 0%,
-        rgba(8,13,26,0.75) 55%,
-        rgba(8,13,26,0.40) 100%
+      background: radial-gradient(
+        ellipse at center,
+        rgba(8,13,26,0.60) 0%,
+        rgba(8,13,26,0.88) 100%
       );
     }
     .hero-accent-bar {
@@ -246,11 +245,15 @@
     .hero-content {
       position: relative;
       z-index: 2;
-      max-width: 1280px;
+      max-width: 900px;
       margin: 0 auto;
       padding: 0 2rem;
       padding-top: 70px;
       width: 100%;
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
     }
     .hero-label {
       font-family: var(--font-cond);
@@ -282,12 +285,12 @@
     }
     .hero-title .accent { color: var(--accent); }
     .hero-logo-img {
-      width: min(420px, 85%);
+      width: min(600px, 90%);
       height: auto;
       display: block;
-      margin-bottom: 1.5rem;
-      border-radius: 10px;
-      box-shadow: 0 20px 60px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.08);
+      margin-bottom: 1rem;
+      filter: drop-shadow(0 8px 40px rgba(0,0,0,0.7));
+      mix-blend-mode: multiply;
     }
     .hero-categories {
       font-family: var(--font-cond);
