@@ -271,32 +271,25 @@
     }
     .hero-title {
       font-family: var(--font-head);
-      font-size: clamp(3.5rem, 9vw, 8rem);
-      line-height: 0.95;
-      letter-spacing: 0.02em;
-      color: var(--white);
-      margin-bottom: 1rem;
-      text-shadow: 0 4px 40px rgba(0,0,0,0.5);
+      font-size: clamp(1.4rem, 3.5vw, 2.8rem);
+      line-height: 1.1;
+      letter-spacing: 0.12em;
+      color: rgba(248,250,252,0.55);
+      margin-bottom: 1.2rem;
+      text-transform: uppercase;
     }
     .hero-title .accent { color: var(--accent); }
     .hero-company-name {
       font-family: var(--font-head);
-      font-size: clamp(1.2rem, 3vw, 2rem);
-      letter-spacing: 0.45em;
-      color: rgba(255,255,255,0.45);
+      font-size: clamp(4.5rem, 13vw, 11rem);
+      line-height: 0.88;
+      letter-spacing: 0.03em;
+      color: var(--white);
       text-transform: uppercase;
-      margin-bottom: 1.4rem;
-      display: flex;
-      align-items: center;
-      gap: 1rem;
+      margin-bottom: 1.2rem;
+      text-shadow: 0 6px 60px rgba(0,0,0,0.6);
     }
-    .hero-company-name::after {
-      content: '';
-      flex: 1;
-      height: 1px;
-      background: rgba(249,115,22,0.25);
-      max-width: 200px;
-    }
+    .hero-company-name .co-accent { color: var(--accent); }
     .hero-categories {
       font-family: var(--font-cond);
       font-weight: 700;
@@ -1092,13 +1085,9 @@
   <div class="hero-overlay"></div>
   <div class="hero-accent-bar"></div>
   <div class="hero-content">
-    <div class="hero-company-name">Marshall Southern Inc.</div>
     <div class="hero-label">Queen Creek, AZ &nbsp;·&nbsp; Serving Arizona Since 1999</div>
-    <h1 class="hero-title">
-      ARIZONA'S<br>
-      <span class="accent">SUPPLY</span><br>
-      POWERHOUSE.
-    </h1>
+    <div class="hero-company-name">MARSHALL<br><span class="co-accent">SOUTHERN</span><br>INC.</div>
+    <h1 class="hero-title">ARIZONA'S <span class="accent">SUPPLY</span> POWERHOUSE.</h1>
     <p class="hero-categories">Industrial Shipping Supplies &nbsp;·&nbsp; Janitorial &nbsp;·&nbsp; Bags &nbsp;·&nbsp; Office Supply &nbsp;·&nbsp; Corrugated Products &nbsp;·&nbsp; Tapes</p>
     <p class="hero-body">
       Expert knowledge. Competitive pricing. Personalized service for every business — no matter the size. One call gets you everything you need.
