@@ -103,6 +103,12 @@ button { cursor: pointer; }
 }
 .menu-pop button { text-align: left; background: none; border: 0; padding: 7px 10px; border-radius: 4px; display: flex; justify-content: space-between; gap: 18px; }
 .menu-pop kbd { font: 11px var(--font-mono); color: var(--muted); }
+.menu-pop.up { top: auto; bottom: 34px; }
+.menu-pop button[hidden] { display: none; }
+.layer canvas.th.target { outline: 2px solid var(--accent); outline-offset: 1px; }
+.layer canvas.mth.off { opacity: .4; }
+.row0 { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+#chanList .hint { padding: 8px; }
 .menu-pop hr { border: 0; border-top: 1px solid var(--line); margin: 4px 0; width: 100%; }
 .restore { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); z-index: 7; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: center; background: var(--panel); border: 1px solid var(--accent); border-radius: 6px; padding: 8px 12px; max-width: calc(100% - 24px); box-shadow: 0 10px 30px rgba(0,0,0,.35); }
 .menu-pop button:hover { background: var(--panel-2); }
@@ -200,7 +206,7 @@ details.grp > .inner { padding: 0 12px 12px; display: flex; flex-direction: colu
 .lprops .ctl { justify-content: space-between; }
 .lprops .ctl input[type="range"] { flex: 1; min-width: 0; }
 .lprops select { flex: 1; min-width: 0; }
-#layerList { list-style: none; margin: 0; padding: 0; max-height: 190px; overflow: auto; display: flex; flex-direction: column; gap: 2px; border: 1px solid var(--line); border-radius: 4px; background: var(--bg); }
+#layerList, #chanList { list-style: none; margin: 0; padding: 0; max-height: 190px; overflow: auto; display: flex; flex-direction: column; gap: 2px; border: 1px solid var(--line); border-radius: 4px; background: var(--bg); }
 .layer { display: flex; align-items: center; gap: 8px; padding: 4px 6px; cursor: pointer; border-left: 3px solid transparent; }
 .layer.active { background: var(--panel-2); border-left-color: var(--accent); }
 .layer .eye { width: 22px; height: 22px; background: none; border: 0; color: var(--muted); display: grid; place-items: center; padding: 0; }
@@ -266,6 +272,7 @@ details.grp > .inner { padding: 0 12px 12px; display: flex; flex-direction: colu
         <button type="button" data-act="deselect">Deselect <kbd>Ctrl+D</kbd></button>
         <button type="button" data-act="invert">Invert selection <kbd>Ctrl+Shift+I</kbd></button>
         <hr>
+        <button type="button" data-act="savesel">Save selection</button>
         <button type="button" data-act="feather">Feather edges…</button>
         <button type="button" data-act="grow">Grow selection…</button>
         <button type="button" data-act="shrink">Shrink selection…</button>
@@ -353,6 +360,16 @@ details.grp > .inner { padding: 0 12px 12px; display: flex; flex-direction: colu
         <summary>One-click filters</summary>
         <div class="inner"><div class="filters" id="filters"></div></div>
       </details>
+      <details class="grp" id="chanGrp">
+        <summary>Saved selections<span id="chCount"></span></summary>
+        <div class="inner">
+          <div class="row0">
+            <button class="btn sm primary" id="chSave" type="button">Save selection</button>
+            <label class="ctl">Load as <select id="chMode"><option value="new">New</option><option value="add">Add</option><option value="sub">Subtract</option><option value="int">Intersect</option></select></label>
+          </div>
+          <ul id="chanList"></ul>
+        </div>
+      </details>
     </div>
     <section class="layers">
       <h2>Layers</h2>
@@ -368,6 +385,21 @@ details.grp > .inner { padding: 0 12px 12px; display: flex; flex-direction: colu
         <button class="btn sm" id="lUp" type="button" aria-label="Move layer up">Up</button>
         <button class="btn sm" id="lDown" type="button" aria-label="Move layer down">Down</button>
         <button class="btn sm" id="lDel" type="button">Delete</button>
+        <details class="menu" id="maskMenu">
+          <summary class="btn sm">Mask</summary>
+          <div class="menu-pop up" role="menu">
+            <button type="button" data-m="reveal" data-has="0">Add mask: reveal all</button>
+            <button type="button" data-m="hide" data-has="0">Add mask: hide all</button>
+            <button type="button" data-m="sel" data-has="0">Mask from selection</button>
+            <button type="button" data-m="hidesel" data-has="0">Mask hiding selection</button>
+            <button type="button" data-m="toggle" data-has="1" id="mToggle">Turn mask off</button>
+            <button type="button" data-m="invert" data-has="1">Invert mask</button>
+            <button type="button" data-m="tosel" data-has="1">Mask to selection</button>
+            <button type="button" data-m="overlay" data-has="1" id="mOverlay">Show red overlay <kbd>\</kbd></button>
+            <button type="button" data-m="apply" data-has="1">Apply mask to pixels</button>
+            <button type="button" data-m="delete" data-has="1">Delete mask</button>
+          </div>
+        </details>
       </div>
     </section>
   </aside>
@@ -456,6 +488,7 @@ const S = {
   fg: '#e2483d', bg: '#ffffff', tool: 'brush', pristine: true, name: 'darkroom-image',
   view: { z: 1, x: 0, y: 0 }, space: false, crop: null, cursor: null, draft: null, cloneSrc: null, pickSrc: false,
   sel: null, selDraft: null, poly: null, gdraft: null, hover: null, viewTouched: false,
+  channels: [], editMask: false, maskOverlay: false,
 };
 const OPT = {
   brush: { size: 28, hardness: 60, opacity: 100 },
@@ -470,7 +503,7 @@ const OPT = {
 };
 const active = () => S.layers.find(l => l.id === S.activeId);
 function newLayer(name, canvas) {
-  return { id: uid++, name, canvas: canvas || mk(S.w, S.h), visible: true, opacity: 100, blend: 'source-over', ox: 0, oy: 0, thumb: true };
+  return { id: uid++, name, canvas: canvas || mk(S.w, S.h), visible: true, opacity: 100, blend: 'source-over', ox: 0, oy: 0, thumb: true, mask: null, maskOn: true };
 }
 
 /* ---------- rendering ---------- */
@@ -509,16 +542,25 @@ function maskedBuf(L) {
   return scratch2;
 }
 function strokePreview(L) {
-  if (!scratch || scratch.width !== L.canvas.width || scratch.height !== L.canvas.height) scratch = mk(L.canvas.width, L.canvas.height);
+  const T = stroke.target;
+  if (!scratch || scratch.width !== T.width || scratch.height !== T.height) scratch = mk(T.width, T.height);
   const x = g2(scratch);
   x.globalCompositeOperation = 'source-over'; x.globalAlpha = 1;
   x.clearRect(0, 0, scratch.width, scratch.height);
-  x.drawImage(L.canvas, 0, 0);
+  x.drawImage(T, 0, 0);
   x.globalAlpha = stroke.opacity;
   x.globalCompositeOperation = stroke.erase ? 'destination-out' : 'source-over';
   x.drawImage(S.sel ? maskedBuf(L) : stroke.buf, 0, 0);
   x.globalAlpha = 1; x.globalCompositeOperation = 'source-over';
   return scratch;
+}
+let scratch3 = null, ovC = null;
+function applyMask(src, mask) {
+  if (!scratch3 || scratch3.width !== src.width || scratch3.height !== src.height) scratch3 = mk(src.width, src.height);
+  const x = g2(scratch3);
+  x.globalCompositeOperation = 'source-over'; x.globalAlpha = 1; x.clearRect(0, 0, scratch3.width, scratch3.height);
+  x.drawImage(src, 0, 0); x.globalCompositeOperation = 'destination-in'; x.drawImage(mask, 0, 0); x.globalCompositeOperation = 'source-over';
+  return scratch3;
 }
 function composite() {
   compDirty = false;
@@ -528,11 +570,23 @@ function composite() {
   x.clearRect(0, 0, comp.width, comp.height);
   for (const L of S.layers) {
     if (!L.visible || L._editing) continue;
+    const sp = stroke && stroke.layer === L ? strokePreview(L) : null;
+    let src = sp && !stroke.mask ? sp : L.canvas;
+    if (L.mask && L.maskOn) src = applyMask(src, sp && stroke.mask ? sp : L.mask);
     x.globalAlpha = L.opacity / 100;
     x.globalCompositeOperation = L.blend;
-    x.drawImage(stroke && stroke.layer === L ? strokePreview(L) : L.canvas, L.ox, L.oy);
+    x.drawImage(src, L.ox, L.oy);
   }
   x.globalAlpha = 1; x.globalCompositeOperation = 'source-over';
+}
+function drawMaskOverlay(x) {
+  const L = active(); if (!L || !L.mask) return;
+  const m = stroke && stroke.mask && stroke.layer === L ? strokePreview(L) : L.mask;
+  if (!ovC || ovC.width !== S.w || ovC.height !== S.h) ovC = mk(S.w, S.h);
+  const o = g2(ovC); o.globalCompositeOperation = 'source-over'; o.clearRect(0, 0, S.w, S.h);
+  o.fillStyle = 'rgba(255,40,40,.5)'; o.fillRect(0, 0, S.w, S.h);
+  o.globalCompositeOperation = 'destination-out'; o.drawImage(m, L.ox, L.oy); o.globalCompositeOperation = 'source-over';
+  x.drawImage(ovC, 0, 0);
 }
 
 function drawShape(x, d) {
@@ -601,6 +655,7 @@ function render() {
   x.translate(v.x, v.y); x.scale(v.z, v.z);
   x.imageSmoothingEnabled = v.z < 2; x.imageSmoothingQuality = 'high';
   x.drawImage(comp, 0, 0);
+  if (S.editMask && S.maskOverlay) drawMaskOverlay(x);
   if (S.draft) drawShape(x, S.draft);
   if (S.sel && edgeA) {
     x.imageSmoothingEnabled = v.z < 1; x.drawImage(antPhase ? edgeB : edgeA, 0, 0);
@@ -667,12 +722,12 @@ function toDoc(e) {
 
 /* ---------- history ---------- */
 const H = { stack: [], idx: 0 };
-const PROPS = ['name', 'visible', 'opacity', 'blend', 'ox', 'oy', 'text'];
-function snapStruct() { return { layers: S.layers.slice(), props: S.layers.map(l => PROPS.map(k => l[k])), active: S.activeId }; }
+const PROPS = ['name', 'visible', 'opacity', 'blend', 'ox', 'oy', 'text', 'mask', 'maskOn'];
+function snapStruct() { return { layers: S.layers.slice(), props: S.layers.map(l => PROPS.map(k => l[k])), active: S.activeId, channels: S.channels.slice() }; }
 function restoreStruct(s) {
   S.layers = s.layers.slice();
   s.layers.forEach((l, i) => { PROPS.forEach((k, j) => { l[k] = s.props[i][j]; }); l.thumb = true; });
-  S.activeId = s.active;
+  S.activeId = s.active; S.channels = (s.channels || []).slice();
   if (!active() && S.layers.length) S.activeId = S.layers[S.layers.length - 1].id;
 }
 function snapDoc() { return { ...snapStruct(), w: S.w, h: S.h, canvases: S.layers.map(l => l.canvas), sel: S.sel }; }
@@ -686,6 +741,7 @@ function paste(c, r, src) {
   x.globalCompositeOperation = 'source-over'; x.globalAlpha = 1;
   x.clearRect(r.x, r.y, r.w, r.h); x.drawImage(src, r.x, r.y); x.restore();
 }
+const maskRegionSwap = (L, r, before) => { let held = before; return () => { if (!L.mask) return; const cur = cut(L.mask, r); paste(L.mask, r, held); held = cur; invalidate(L); renderLayers(); }; };
 const regionSwap = (L, r, before) => { let held = before; return () => { const cur = cut(L.canvas, r); paste(L.canvas, r, held); held = cur; invalidate(L); renderLayers(); }; };
 const fullRect = () => ({ x: 0, y: 0, w: S.w, h: S.h });
 
@@ -719,14 +775,15 @@ function afterHistory() {
   if (d !== lastDims) { lastDims = d; fit(); }
   S.crop = null;
   selChanged();
-  compDirty = true; renderLayers(); syncLayerProps(); updateStatus(); requestRender();
+  compDirty = true; renderLayers(); renderChannels(); syncLayerProps(); updateStatus(); requestRender();
 }
-function docOp(label, fn) {
+function docOp(label, fn, keepChannels) {
   settlePending(true);
   const b = snapDoc();
   const bytes = b.canvases.reduce((a, c) => a + c.width * c.height * 4, 0);
+  if (!keepChannels) S.channels = [];
   fn();
-  S.sel = null;
+  S.sel = null; S.editMask = false;
   pushHist(label, [docSwap(b)], bytes);
   lastDims = S.w + 'x' + S.h;
   afterHistory(); fit();
@@ -932,6 +989,7 @@ function updatePendUI() {
 }
 function onAdjust() {
   const L = active(); if (!L) return;
+  if (S.editMask && L.mask) { toast(MASK_BLOCK); resetP(); return; }
   if (!pending) { rasterizeIfText(L); pending = { layer: L, base: clone(L.canvas), c: null }; }
   updatePendUI();
   if (!previewQueued) { previewQueued = true; requestAnimationFrame(() => { previewQueued = false; runPreview(); }); }
@@ -1042,9 +1100,11 @@ function wireCurve() {
 }
 
 /* ---------- filters ---------- */
+const MASK_BLOCK = 'This tool changes layer pixels. Click the layer thumbnail to switch back from the mask.';
 function mapPixels(fn) {
   settlePending(true);
   const L = active(); if (!L) return;
+  if (S.editMask && L.mask) { toast(MASK_BLOCK); return null; }
   rasterizeIfText(L);
   const r = fullRect(), before = cut(L.canvas, r), x = g2(L.canvas);
   const id = x.getImageData(0, 0, r.w, r.h);
@@ -1076,6 +1136,7 @@ const FILTERS = [
   ['Pixelate', () => {
     settlePending(true);
     const L = active(); if (!L) return;
+    if (S.editMask && L.mask) { toast(MASK_BLOCK); return; }
     rasterizeIfText(L);
     const r = fullRect(), before = cut(L.canvas, r), size = Math.max(6, Math.round(Math.max(r.w, r.h) / 90));
     const small = mk(Math.ceil(r.w / size), Math.ceil(r.h / size));
@@ -1095,29 +1156,54 @@ function buildFilters() {
 const BLENDS = [['source-over', 'Normal'], ['multiply', 'Multiply'], ['screen', 'Screen'], ['overlay', 'Overlay'], ['darken', 'Darken'], ['lighten', 'Lighten'], ['color-dodge', 'Color dodge'], ['color-burn', 'Color burn'], ['hard-light', 'Hard light'], ['soft-light', 'Soft light'], ['difference', 'Difference'], ['exclusion', 'Exclusion'], ['hue', 'Hue'], ['saturation', 'Saturation'], ['color', 'Color'], ['luminosity', 'Luminosity']];
 const EYE = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>';
 const EYE_OFF = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3l18 18M10.6 5.1A10 10 0 0112 5c6.4 0 10 7 10 7a17 17 0 01-3.2 4M6.6 6.6C3.9 8.4 2 12 2 12s3.6 7 10 7c1.6 0 3-.4 4.3-1M9.9 9.9a3 3 0 004.2 4.2"/></svg>';
-function selectLayer(id) { if (id === S.activeId) return; settlePending(true); S.activeId = id; renderLayers(); syncLayerProps(); refreshHist(); }
+function selectLayer(id, editMask = false) {
+  settlePending(true);
+  const L = S.layers.find(l => l.id === id), em = !!(editMask && L && L.mask);
+  if (id === S.activeId && em === S.editMask) return;
+  S.activeId = id; S.editMask = em;
+  renderLayers(); syncLayerProps(); refreshHist(); requestRender();
+}
+function thumbGeom(c, L) { const s = Math.min(c.width / S.w, c.height / S.h), w = S.w * s, h = S.h * s; return [(c.width - w) / 2 + (L ? L.ox : 0) * s, (c.height - h) / 2 + (L ? L.oy : 0) * s, w, h]; }
 function drawThumb(L, c) {
   const x = g2(c); x.clearRect(0, 0, c.width, c.height);
-  const s = Math.min(c.width / S.w, c.height / S.h), w = S.w * s, h = S.h * s;
-  x.imageSmoothingQuality = 'high'; x.drawImage(L.canvas, (c.width - w) / 2 + L.ox * s, (c.height - h) / 2 + L.oy * s, w, h);
+  const [gx, gy, gw, gh] = thumbGeom(c, L);
+  x.imageSmoothingQuality = 'high'; x.drawImage(L.canvas, gx, gy, gw, gh);
+  if (L.mask && L.maskOn) { x.globalCompositeOperation = 'destination-in'; x.drawImage(L.mask, gx, gy, gw, gh); x.globalCompositeOperation = 'source-over'; }
   L.thumb = false;
+}
+function drawMaskThumb(src, c, L) {
+  const x = g2(c); x.fillStyle = '#000'; x.fillRect(0, 0, c.width, c.height);
+  const t = mk(c.width, c.height), tx = g2(t), [gx, gy, gw, gh] = thumbGeom(c, L);
+  tx.imageSmoothingQuality = 'high'; tx.drawImage(src, gx, gy, gw, gh); tx.globalCompositeOperation = 'source-in'; tx.fillStyle = '#fff'; tx.fillRect(0, 0, c.width, c.height);
+  x.drawImage(t, 0, 0);
 }
 function updateThumbs() {
   if (!pending) refreshHist();
-  $$('#layerList li').forEach(li => { const L = S.layers.find(l => l.id === +li.dataset.id); if (L && L.thumb) drawThumb(L, li.querySelector('canvas')); });
+  $$('#layerList li').forEach(li => {
+    const L = S.layers.find(l => l.id === +li.dataset.id);
+    if (L && L.thumb) { drawThumb(L, li.querySelector('canvas:not(.mth)')); const mt = li.querySelector('canvas.mth'); if (mt && L.mask) drawMaskThumb(L.mask, mt, L); }
+  });
 }
 function renderLayers() {
+  if (S.editMask && !(active() && active().mask)) S.editMask = false;
   const ul = $('#layerList'); ul.innerHTML = '';
   [...S.layers].reverse().forEach(L => {
     const li = el('li', { class: 'layer' + (L.id === S.activeId ? ' active' : ''), 'data-id': L.id });
     const eye = el('button', { class: 'eye', type: 'button', 'aria-label': 'Toggle visibility of ' + L.name, 'aria-pressed': String(L.visible) });
     eye.innerHTML = L.visible ? EYE : EYE_OFF;
     eye.addEventListener('click', ev => { ev.stopPropagation(); settlePending(true); const b = snapStruct(); L.visible = !L.visible; pushHist('Visibility', [structSwap(b)]); invalidate(L); renderLayers(); });
-    const th = el('canvas', { class: 'th', width: 80, height: 56 });
+    const th = el('canvas', { class: 'th' + (L.mask && L.id === S.activeId && !S.editMask ? ' target' : ''), width: 80, height: 56, title: 'Layer pixels' });
     const nm = el('span', { class: 'nm', text: L.name, title: 'Double-click to rename' });
-    li.append(eye, th, nm);
+    li.append(eye, th);
+    let mt = null;
+    if (L.mask) {
+      mt = el('canvas', { class: 'th mth' + (L.id === S.activeId && S.editMask ? ' target' : '') + (L.maskOn ? '' : ' off'), width: 80, height: 56, title: L.maskOn ? 'Layer mask. Click to paint on it.' : 'Layer mask (off). Click to paint on it.' });
+      mt.addEventListener('click', ev => { ev.stopPropagation(); selectLayer(L.id, true); });
+      li.append(mt);
+    }
+    li.append(nm);
     if (L.text) li.append(el('span', { class: 'tbadge', text: 'T', title: 'Editable text layer' }));
-    li.addEventListener('click', () => selectLayer(L.id));
+    li.addEventListener('click', () => selectLayer(L.id, false));
     nm.addEventListener('dblclick', ev => {
       ev.stopPropagation();
       const inp = el('input', { class: 'rn', type: 'text', value: L.name, 'aria-label': 'Layer name' });
@@ -1128,8 +1214,9 @@ function renderLayers() {
       inp.addEventListener('blur', () => fin(true));
     });
     ul.append(li);
-    drawThumb(L, th);
+    drawThumb(L, th); if (mt) drawMaskThumb(L.mask, mt, L);
   });
+  syncMaskUI();
 }
 function syncLayerProps() {
   const L = active(); if (!L) return;
@@ -1152,6 +1239,7 @@ function dupLayer() {
   const L = active(); if (!L) return; settlePending(true);
   const b = snapStruct(), n = newLayer(L.name + ' copy', clone(L.canvas));
   PROPS.forEach(k => { if (k !== 'name') n[k] = L[k]; });
+  if (L.mask) n.mask = clone(L.mask);
   S.layers.splice(S.layers.indexOf(L) + 1, 0, n); S.activeId = n.id;
   pushHist('Duplicate layer', [structSwap(b)]); invalidate(n); renderLayers(); syncLayerProps();
 }
@@ -1173,17 +1261,29 @@ function mergeDown() {
   const A = active(); if (!A) return; settlePending(true);
   const i = S.layers.indexOf(A);
   if (i === 0) { toast('There is no layer below to merge into'); return; }
-  const B = S.layers[i - 1]; rasterizeIfText(B);
+  const B = S.layers[i - 1];
+  if (B.mask) { toast('Apply or delete the mask on the layer below first'); return; }
+  rasterizeIfText(B);
   const r = fullRect(), before = cut(B.canvas, r), b = snapStruct();
   const x = g2(B.canvas);
-  if (A.visible) { x.save(); x.globalAlpha = A.opacity / 100; x.globalCompositeOperation = A.blend; x.drawImage(A.canvas, A.ox - B.ox, A.oy - B.oy); x.restore(); }
+  if (A.visible) { x.save(); x.globalAlpha = A.opacity / 100; x.globalCompositeOperation = A.blend; x.drawImage(A.mask && A.maskOn ? applyMask(A.canvas, A.mask) : A.canvas, A.ox - B.ox, A.oy - B.oy); x.restore(); }
   S.layers.splice(i, 1); S.activeId = B.id;
   pushHist('Merge layers', [regionSwap(B, r, before), structSwap(b)], r.w * r.h * 4);
   invalidate(B); renderLayers(); syncLayerProps();
 }
 
 /* ---------- document ops ---------- */
-function bake(L) { const n = mk(S.w, S.h); g2(n).drawImage(L.canvas, L.ox, L.oy); return n; }
+function bakeC(src, L) { const n = mk(S.w, S.h); g2(n).drawImage(src, L ? L.ox : 0, L ? L.oy : 0); return n; }
+function bake(L) { return bakeC(L.canvas, L); }
+function bakeVisible(L) { const n = mk(S.w, S.h); g2(n).drawImage(L.mask && L.maskOn ? applyMask(L.canvas, L.mask) : L.canvas, L.ox, L.oy); return n; }
+function mapLayers(nw, nh, draw) {
+  const step = (src, L) => { const n = mk(nw, nh); draw(g2(n), bakeC(src, L)); return n; };
+  S.layers.forEach(L => {
+    const c = step(L.canvas, L), m = L.mask ? step(L.mask, L) : null;
+    L.canvas = c; if (m) L.mask = m; L.ox = 0; L.oy = 0; L.text = null;
+  });
+  S.channels = S.channels.map(ch => ({ ...ch, mask: step(ch.mask, null) }));
+}
 function setDoc(canvas, name) {
   S.w = canvas.width; S.h = canvas.height;
   const L = newLayer(name, canvas); S.layers = [L]; S.activeId = L.id;
@@ -1239,26 +1339,110 @@ function cropApply() {
   const w = x1 - x0, h = y1 - y0;
   if (w < 2 || h < 2) { toast('Drag a larger crop area first'); return; }
   S.crop = null;
-  docOp('Crop', () => { S.layers.forEach(L => { const n = mk(w, h); g2(n).drawImage(L.canvas, L.ox - x0, L.oy - y0); L.canvas = n; L.ox = 0; L.oy = 0; L.text = null; }); S.w = w; S.h = h; });
+  docOp('Crop', () => { mapLayers(w, h, (x, b) => x.drawImage(b, -x0, -y0)); S.w = w; S.h = h; }, true);
   renderOpts();
 }
 function cropCancel() { S.crop = null; renderOpts(); requestRender(); }
 function rotateDoc(dir) {
   docOp('Rotate', () => {
     const W = S.w, Hh = S.h;
-    S.layers.forEach(L => { const b = bake(L), n = mk(Hh, W), x = g2(n); x.translate(dir > 0 ? Hh : 0, dir > 0 ? 0 : W); x.rotate(dir * Math.PI / 2); x.drawImage(b, 0, 0); L.canvas = n; L.ox = 0; L.oy = 0; L.text = null; });
+    mapLayers(Hh, W, (x, b) => { x.translate(dir > 0 ? Hh : 0, dir > 0 ? 0 : W); x.rotate(dir * Math.PI / 2); x.drawImage(b, 0, 0); });
     S.w = Hh; S.h = W;
-  });
+  }, true);
 }
 function flipDoc(horiz) {
   docOp('Flip', () => {
-    S.layers.forEach(L => { const b = bake(L), n = mk(S.w, S.h), x = g2(n); if (horiz) { x.translate(S.w, 0); x.scale(-1, 1); } else { x.translate(0, S.h); x.scale(1, -1); } x.drawImage(b, 0, 0); L.canvas = n; L.ox = 0; L.oy = 0; L.text = null; });
-  });
+    const W = S.w, Hh = S.h;
+    mapLayers(W, Hh, (x, b) => { if (horiz) { x.translate(W, 0); x.scale(-1, 1); } else { x.translate(0, Hh); x.scale(1, -1); } x.drawImage(b, 0, 0); });
+  }, true);
 }
 function resizeDoc(w, h) {
   docOp('Resize image', () => {
-    S.layers.forEach(L => { const b = bake(L), n = mk(w, h), x = g2(n); x.imageSmoothingQuality = 'high'; x.drawImage(b, 0, 0, w, h); L.canvas = n; L.ox = 0; L.oy = 0; L.text = null; });
+    mapLayers(w, h, (x, b) => { x.imageSmoothingQuality = 'high'; x.drawImage(b, 0, 0, w, h); });
     S.w = w; S.h = h;
+  }, true);
+}
+
+/* ---------- layer masks and saved selections ---------- */
+const lumOf = hex => { const [r, g, b] = hexToRgb(hex); return (r * .2126 + g * .7152 + b * .0722) / 255; };
+function addMask(kind) {
+  settlePending(true);
+  const L = active(); if (!L) return;
+  if (L.mask) { toast('This layer already has a mask'); return; }
+  if ((kind === 'sel' || kind === 'hidesel') && !S.sel) { toast('Make a selection first'); return; }
+  const m = mk(L.canvas.width, L.canvas.height), x = g2(m);
+  if (kind === 'reveal' || kind === 'hidesel') { x.fillStyle = '#fff'; x.fillRect(0, 0, m.width, m.height); }
+  if (kind === 'sel') x.drawImage(selMaskFor(L), 0, 0);
+  if (kind === 'hidesel') { x.globalCompositeOperation = 'destination-out'; x.drawImage(selMaskFor(L), 0, 0); }
+  const b = snapStruct(); L.mask = m; L.maskOn = true; S.editMask = true;
+  pushHist('Add mask', [structSwap(b)], m.width * m.height * 4);
+  invalidate(L); renderLayers();
+  toast('Mask added. Paint white to reveal and black to hide.');
+}
+function maskCmd(cmd) {
+  settlePending(true);
+  const L = active(); if (!L || !L.mask) return;
+  if (cmd === 'overlay') { S.maskOverlay = !S.maskOverlay; syncMaskUI(); requestRender(); return; }
+  if (cmd === 'tosel') { const c = mk(S.w, S.h); g2(c).drawImage(L.mask, L.ox, L.oy); commitSel(c, 'Mask to selection'); return; }
+  const b = snapStruct(), r = { x: 0, y: 0, w: L.mask.width, h: L.mask.height };
+  if (cmd === 'toggle') { L.maskOn = !L.maskOn; pushHist(L.maskOn ? 'Turn mask on' : 'Turn mask off', [structSwap(b)]); }
+  else if (cmd === 'delete') { L.mask = null; S.editMask = false; pushHist('Delete mask', [structSwap(b)]); }
+  else if (cmd === 'invert') {
+    const before = cut(L.mask, r), t = mk(r.w, r.h), tx = g2(t);
+    tx.fillStyle = '#fff'; tx.fillRect(0, 0, r.w, r.h); tx.globalCompositeOperation = 'destination-out'; tx.drawImage(L.mask, 0, 0);
+    const x = g2(L.mask); x.clearRect(0, 0, r.w, r.h); x.drawImage(t, 0, 0);
+    pushHist('Invert mask', [maskRegionSwap(L, r, before)], r.w * r.h * 4);
+  } else if (cmd === 'apply') {
+    rasterizeIfText(L);
+    const rr = fullRect(), before = cut(L.canvas, rr), x = g2(L.canvas), b2 = snapStruct();
+    x.save(); x.globalCompositeOperation = 'destination-in'; x.drawImage(L.mask, 0, 0); x.restore();
+    L.mask = null; S.editMask = false;
+    pushHist('Apply mask', [regionSwap(L, rr, before), structSwap(b2)], rr.w * rr.h * 4);
+  }
+  invalidate(L); renderLayers();
+}
+function syncMaskUI() {
+  const L = active(), has = !!(L && L.mask);
+  $$('#maskMenu [data-m]').forEach(b => { b.hidden = (b.dataset.has === '1') !== has; });
+  const tg = $('#mToggle'); if (tg) tg.textContent = L && L.maskOn === false ? 'Turn mask on' : 'Turn mask off';
+  const ov = $('#mOverlay'); if (ov && ov.firstChild) ov.firstChild.textContent = S.maskOverlay ? 'Hide red overlay ' : 'Show red overlay ';
+  updateStatus();
+}
+function saveSelection() {
+  if (!S.sel) { toast('Make a selection first'); return; }
+  if (S.channels.length >= 20) { toast('You can keep up to 20 saved selections'); return; }
+  settlePending(true);
+  const b = snapStruct();
+  S.channels = [...S.channels, { id: uid++, name: 'Selection ' + (S.channels.length + 1), mask: S.sel.mask }];
+  pushHist('Save selection', [structSwap(b)], 0);
+  renderChannels(); $('#chanGrp').open = true; toast('Selection saved. Find it under Saved selections.');
+}
+function loadChannel(ch, mode) { settlePending(true); commitSel(combineSel(ch.mask, mode || 'new'), 'Load selection'); }
+function renderChannels() {
+  const ul = $('#chanList'); if (!ul) return;
+  ul.innerHTML = '';
+  $('#chCount').textContent = S.channels.length ? ` (${S.channels.length})` : '';
+  if (!S.channels.length) { ul.append(el('li', { class: 'hint', text: 'No saved selections yet. Make a selection, then press Save selection.' })); return; }
+  S.channels.forEach(ch => {
+    const li = el('li', { class: 'layer' }), th = el('canvas', { class: 'th', width: 80, height: 56 });
+    const nm = el('span', { class: 'nm', text: ch.name, title: 'Double-click to rename' });
+    const load = el('button', { class: 'btn sm', type: 'button', text: 'Load', 'aria-label': 'Load ' + ch.name });
+    const del = el('button', { class: 'btn sm', type: 'button', text: 'Delete', 'aria-label': 'Delete ' + ch.name });
+    li.append(th, nm, load, del); ul.append(li); drawMaskThumb(ch.mask, th, null);
+    load.addEventListener('click', () => loadChannel(ch, $('#chMode').value));
+    del.addEventListener('click', () => { const b = snapStruct(); S.channels = S.channels.filter(c => c !== ch); pushHist('Delete saved selection', [structSwap(b)]); renderChannels(); });
+    nm.addEventListener('dblclick', () => {
+      const inp = el('input', { class: 'rn', type: 'text', value: ch.name, 'aria-label': 'Saved selection name' });
+      nm.replaceWith(inp); inp.focus(); inp.select();
+      let done = false;
+      const fin = ok => {
+        if (done) return; done = true; const v = inp.value.trim().slice(0, 40);
+        if (ok && v && v !== ch.name) { const b = snapStruct(); S.channels = S.channels.map(c => (c === ch ? { ...c, name: v } : c)); pushHist('Rename saved selection', [structSwap(b)]); }
+        renderChannels();
+      };
+      inp.addEventListener('keydown', e => { e.stopPropagation(); if (e.key === 'Enter') fin(true); if (e.key === 'Escape') fin(false); });
+      inp.addEventListener('blur', () => fin(true));
+    });
   });
 }
 
@@ -1376,6 +1560,15 @@ function editSel(kind) {
   if (!L) return;
   if (!S.sel) { toast('Make a selection first'); return; }
   if (!L.visible) { toast('This layer is hidden. Turn it on first.'); return; }
+  if (S.editMask && L.mask) {
+    if (!L.maskOn) { toast('This mask is turned off. Turn it on from the Mask menu first.'); return; }
+    const rm = selRectInLayer(L); if (rm.w < 1 || rm.h < 1) return;
+    const beforeM = cut(L.mask, rm), mx = g2(L.mask), mm = selMaskFor(L), hide = kind === 'clear' || lumOf(S.fg) < 0.5;
+    if (hide) { mx.save(); mx.globalCompositeOperation = 'destination-out'; mx.drawImage(mm, 0, 0); mx.restore(); }
+    else { const t = mk(rm.w, rm.h), tx = g2(t); tx.fillStyle = '#fff'; tx.fillRect(0, 0, rm.w, rm.h); tx.globalCompositeOperation = 'destination-in'; tx.drawImage(mm, -rm.x, -rm.y); mx.drawImage(t, rm.x, rm.y); }
+    pushHist(hide ? 'Hide in mask' : 'Reveal in mask', [maskRegionSwap(L, rm, beforeM)], rm.w * rm.h * 4); invalidate(L); renderLayers();
+    return;
+  }
   rasterizeIfText(L);
   const r = selRectInLayer(L); if (r.w < 1 || r.h < 1) return;
   const before = cut(L.canvas, r), x = g2(L.canvas), m = selMaskFor(L);
@@ -1387,7 +1580,7 @@ function layerViaSel(doCut) {
   settlePending(true);
   const L = active(); if (!L) return;
   if (doCut && !S.sel) { toast('Make a selection first'); return; }
-  const nc = mk(S.w, S.h), x = g2(nc); x.drawImage(L.canvas, L.ox, L.oy);
+  const nc = mk(S.w, S.h), x = g2(nc); x.drawImage(L.mask && L.maskOn ? applyMask(L.canvas, L.mask) : L.canvas, L.ox, L.oy);
   if (S.sel) { x.globalCompositeOperation = 'destination-in'; x.drawImage(S.sel.mask, 0, 0); }
   if (doCut) {
     rasterizeIfText(L);
@@ -1408,7 +1601,7 @@ function wandSelect(p, e) {
   const L = active(); if (!L) return;
   const px = Math.floor(p.x), py = Math.floor(p.y);
   if (px < 0 || py < 0 || px >= S.w || py >= S.h) return;
-  let srcC; if (OPT.sel.merged) { if (compDirty) composite(); srcC = comp; } else srcC = bake(L);
+  let srcC; if (OPT.sel.merged) { if (compDirty) composite(); srcC = comp; } else srcC = bakeVisible(L);
   const d = g2(srcC).getImageData(0, 0, S.w, S.h).data;
   const seen = floodMask(d, S.w, S.h, px, py, OPT.sel.tol * 2.55, OPT.sel.contig);
   const id = new ImageData(S.w, S.h);
@@ -1452,10 +1645,15 @@ function strokeStart(p, e) {
   settlePending(true);
   const L = active(); if (!L) return false;
   if (!L.visible) { toast('This layer is hidden. Turn it on to paint.'); return false; }
-  rasterizeIfText(L);
-  const erase = S.tool === 'eraser', heal = S.tool === 'retouch', o = OPT[heal ? 'retouch' : S.tool];
-  if (!bufCache || bufCache.width !== L.canvas.width || bufCache.height !== L.canvas.height) bufCache = mk(L.canvas.width, L.canvas.height);
-  stroke = { layer: L, buf: bufCache, bx: g2(bufCache), erase, heal, opacity: heal ? 0.55 : o.opacity / 100, size: o.size, hardness: o.hardness, color: heal ? '#f2a541' : erase ? '#000000' : S.fg, last: null, carry: 0, box: null, pen: e.pointerType === 'pen' };
+  const em = !!(S.editMask && L.mask);
+  if (em && !L.maskOn) { toast('This mask is turned off. Turn it on from the Mask menu first.'); return false; }
+  if (!em) rasterizeIfText(L);
+  const target = em ? L.mask : L.canvas;
+  const eraserTool = S.tool === 'eraser', heal = S.tool === 'retouch' && !em, o = OPT[S.tool === 'retouch' ? 'retouch' : S.tool];
+  const erase = em ? eraserTool || lumOf(S.fg) < 0.5 : eraserTool;
+  const color = heal ? '#f2a541' : em ? '#ffffff' : eraserTool ? '#000000' : S.fg;
+  if (!bufCache || bufCache.width !== target.width || bufCache.height !== target.height) bufCache = mk(target.width, target.height);
+  stroke = { layer: L, target, mask: em, buf: bufCache, bx: g2(bufCache), erase, heal, opacity: heal ? 0.55 : o.opacity / 100, size: o.size, hardness: o.hardness, color, last: null, carry: 0, box: null, pen: e.pointerType === 'pen' };
   strokeTo(p, e);
   return true;
 }
@@ -1483,15 +1681,16 @@ function strokeEnd() {
   const L = s.layer;
   if (s.heal) { healStroke(s); stroke = null; invalidate(L); return; }
   if (s.box) {
-    const r = { x: clamp(Math.floor(s.box.x0), 0, L.canvas.width), y: clamp(Math.floor(s.box.y0), 0, L.canvas.height) };
-    r.w = clamp(Math.ceil(s.box.x1), 0, L.canvas.width) - r.x; r.h = clamp(Math.ceil(s.box.y1), 0, L.canvas.height) - r.y;
+    const T = s.target;
+    const r = { x: clamp(Math.floor(s.box.x0), 0, T.width), y: clamp(Math.floor(s.box.y0), 0, T.height) };
+    r.w = clamp(Math.ceil(s.box.x1), 0, T.width) - r.x; r.h = clamp(Math.ceil(s.box.y1), 0, T.height) - r.y;
     if (r.w > 0 && r.h > 0) {
-      const before = cut(L.canvas, r), x = g2(L.canvas);
+      const before = cut(T, r), x = g2(T);
       let src = s.buf, sx = 0, sy = 0;
       if (S.sel) { const t = mk(r.w, r.h), tx = g2(t); tx.drawImage(s.buf, -r.x, -r.y); tx.globalCompositeOperation = 'destination-in'; tx.drawImage(selMaskFor(L), -r.x, -r.y); src = t; sx = r.x; sy = r.y; }
       x.save(); x.globalAlpha = s.opacity; x.globalCompositeOperation = s.erase ? 'destination-out' : 'source-over'; x.drawImage(src, sx, sy); x.restore();
       s.bx.clearRect(r.x, r.y, r.w, r.h);
-      pushHist(s.erase ? 'Erase' : 'Brush stroke', [regionSwap(L, r, before)], r.w * r.h * 4);
+      pushHist(s.mask ? 'Mask stroke' : s.erase ? 'Erase' : 'Brush stroke', [(s.mask ? maskRegionSwap : regionSwap)(L, r, before)], r.w * r.h * 4);
     }
   }
   stroke = null; invalidate(L);
@@ -1522,27 +1721,30 @@ function bucketFill(p) {
   settlePending(true);
   const L = active(); if (!L) return;
   if (!L.visible) { toast('This layer is hidden. Turn it on to fill.'); return; }
-  rasterizeIfText(L);
-  const w = L.canvas.width, h = L.canvas.height, px = Math.floor(p.x - L.ox), py = Math.floor(p.y - L.oy);
+  const em = !!(S.editMask && L.mask);
+  if (em && !L.maskOn) { toast('This mask is turned off. Turn it on from the Mask menu first.'); return; }
+  if (!em) rasterizeIfText(L);
+  const T = em ? L.mask : L.canvas, w = T.width, h = T.height, px = Math.floor(p.x - L.ox), py = Math.floor(p.y - L.oy);
   if (px < 0 || py < 0 || px >= w || py >= h) return;
-  const x = g2(L.canvas), id = x.getImageData(0, 0, w, h), d = id.data;
+  const x = g2(T), id = x.getImageData(0, 0, w, h), d = id.data;
   const seen = floodMask(d, w, h, px, py, OPT.bucket.tol * 2.55, true);
-  const [fr, fg, fb] = hexToRgb(S.fg);
+  let fr = 255, fg = 255, fb = 255, fa = 255;
+  if (em) fa = lumOf(S.fg) >= 0.5 ? 255 : 0; else [fr, fg, fb] = hexToRgb(S.fg);
   let x0 = w, y0 = h, x1 = -1, y1 = -1;
   for (let yy = 0; yy < h; yy++) for (let xx = 0; xx < w; xx++) {
     if (!seen[yy * w + xx] || selWeight(xx, yy, L) <= 0) continue;
     if (xx < x0) x0 = xx; if (xx > x1) x1 = xx; if (yy < y0) y0 = yy; if (yy > y1) y1 = yy;
   }
   if (x1 < 0) return;
-  const r = { x: x0, y: y0, w: x1 - x0 + 1, h: y1 - y0 + 1 }, before = cut(L.canvas, r);
+  const r = { x: x0, y: y0, w: x1 - x0 + 1, h: y1 - y0 + 1 }, before = cut(T, r);
   for (let yy = y0; yy <= y1; yy++) for (let xx = x0; xx <= x1; xx++) {
     if (!seen[yy * w + xx]) continue;
     const sw = selWeight(xx, yy, L); if (sw <= 0) continue;
     const i = (yy * w + xx) * 4;
-    d[i] = d[i] * (1 - sw) + fr * sw; d[i + 1] = d[i + 1] * (1 - sw) + fg * sw; d[i + 2] = d[i + 2] * (1 - sw) + fb * sw; d[i + 3] = d[i + 3] * (1 - sw) + 255 * sw;
+    d[i] = d[i] * (1 - sw) + fr * sw; d[i + 1] = d[i + 1] * (1 - sw) + fg * sw; d[i + 2] = d[i + 2] * (1 - sw) + fb * sw; d[i + 3] = d[i + 3] * (1 - sw) + fa * sw;
   }
   x.putImageData(id, 0, 0, r.x, r.y, r.w, r.h);
-  pushHist('Fill', [regionSwap(L, r, before)], r.w * r.h * 4); invalidate(L); renderLayers();
+  pushHist(em ? 'Fill mask' : 'Fill', [(em ? maskRegionSwap : regionSwap)(L, r, before)], r.w * r.h * 4); invalidate(L); renderLayers();
 }
 
 /* ---------- retouch tools ---------- */
@@ -1970,6 +2172,7 @@ function toolDown(p, e) {
   else if (t === 'gradient') { settlePending(true); drag = { type: 'grad' }; S.gdraft = { x0: p.x, y0: p.y, x1: p.x, y1: p.y }; }
   else if (t === 'retouch') {
     const o = OPT.retouch;
+    if (S.editMask && active() && active().mask) { toast(MASK_BLOCK); return; }
     if (o.mode === 'clone' && (e.altKey || S.pickSrc)) { S.cloneSrc = { x: p.x, y: p.y }; S.pickSrc = false; toast('Source set. Now paint where the copy should go.'); requestRender(); }
     else if (o.mode === 'heal') { if (strokeStart(p, e)) drag = { type: 'stroke' }; }
     else if (retStart(p, e)) drag = { type: 'ret' };
@@ -2107,21 +2310,32 @@ function applyGradient(g) {
   settlePending(true);
   const L = active(); if (!L) return;
   if (!L.visible) { toast('This layer is hidden. Turn it on first.'); return; }
-  rasterizeIfText(L);
-  const o = OPT.grad, W = L.canvas.width, H = L.canvas.height, x0 = g.x0 - L.ox, y0 = g.y0 - L.oy, x1 = g.x1 - L.ox, y1 = g.y1 - L.oy;
-  const rgb = hexToRgb(S.fg).join(','), fgc = `rgba(${rgb},1)`;
-  let c0 = fgc, c1 = o.colors === 'fgt' ? `rgba(${rgb},0)` : S.bg;
+  const em = !!(S.editMask && L.mask);
+  if (em && !L.maskOn) { toast('This mask is turned off. Turn it on from the Mask menu first.'); return; }
+  if (!em) rasterizeIfText(L);
+  const o = OPT.grad, T = em ? L.mask : L.canvas, W = T.width, H = T.height, x0 = g.x0 - L.ox, y0 = g.y0 - L.oy, x1 = g.x1 - L.ox, y1 = g.y1 - L.oy;
+  let c0, c1;
+  if (em) { c0 = `rgba(255,255,255,${lumOf(S.fg)})`; c1 = `rgba(255,255,255,${o.colors === 'fgt' ? 0 : lumOf(S.bg)})`; }
+  else { const rgb = hexToRgb(S.fg).join(','); c0 = `rgba(${rgb},1)`; c1 = o.colors === 'fgt' ? `rgba(${rgb},0)` : S.bg; }
   if (o.reverse) [c0, c1] = [c1, c0];
   const tmp = mk(W, H), tx = g2(tmp);
   const gr = o.type === 'radial' ? tx.createRadialGradient(x0, y0, 0, x0, y0, Math.hypot(x1 - x0, y1 - y0) || 1) : tx.createLinearGradient(x0, y0, x1, y1);
   gr.addColorStop(0, c0); gr.addColorStop(1, c1);
   tx.fillStyle = gr; tx.fillRect(0, 0, W, H);
-  if (S.sel) { tx.globalCompositeOperation = 'destination-in'; tx.drawImage(selMaskFor(L), 0, 0); }
   const r = S.sel ? selRectInLayer(L) : { x: 0, y: 0, w: W, h: H };
   if (r.w < 1 || r.h < 1) return;
-  const before = cut(L.canvas, r), lx = g2(L.canvas);
-  lx.save(); lx.globalAlpha = o.opacity / 100; lx.drawImage(tmp, 0, 0); lx.restore();
-  pushHist('Gradient', [regionSwap(L, r, before)], r.w * r.h * 4); invalidate(L); renderLayers();
+  const before = cut(T, r), lx = g2(T);
+  if (em) {
+    const cov = mk(W, H), cx = g2(cov); cx.globalAlpha = o.opacity / 100; cx.fillStyle = '#fff'; cx.fillRect(0, 0, W, H); cx.globalAlpha = 1;
+    if (S.sel) { cx.globalCompositeOperation = 'destination-in'; cx.drawImage(selMaskFor(L), 0, 0); }
+    const keep = clone(T), kx = g2(keep); kx.globalCompositeOperation = 'destination-out'; kx.drawImage(cov, 0, 0);
+    tx.globalCompositeOperation = 'destination-in'; tx.drawImage(cov, 0, 0);
+    lx.clearRect(0, 0, W, H); lx.drawImage(keep, 0, 0); lx.drawImage(tmp, 0, 0);
+  } else {
+    if (S.sel) { tx.globalCompositeOperation = 'destination-in'; tx.drawImage(selMaskFor(L), 0, 0); }
+    lx.save(); lx.globalAlpha = o.opacity / 100; lx.drawImage(tmp, 0, 0); lx.restore();
+  }
+  pushHist(em ? 'Mask gradient' : 'Gradient', [(em ? maskRegionSwap : regionSwap)(L, r, before)], r.w * r.h * 4); invalidate(L); renderLayers();
 }
 function pickColor(p, secondary) {
   if (compDirty) composite();
@@ -2137,7 +2351,9 @@ function setColor(which, hex) { S[which] = hex; $(which === 'fg' ? '#fgIn' : '#b
 function updateStatus() {
   $('#stInfo').textContent = `${S.w} × ${S.h} px`;
   $('#zLabel').textContent = Math.round(S.view.z * 100) + '%';
-  $('#stHint').textContent = S.pristine && S.layers.length === 1 && S.layers[0].name === 'Sample photo' ? 'Sample image. Open your own photo or drop one here.' : '';
+  const L = active();
+  $('#stHint').textContent = S.editMask && L && L.mask ? `Editing the mask of “${L.name}”. Paint white to reveal, black to hide.`
+    : S.pristine && S.layers.length === 1 && S.layers[0].name === 'Sample photo' ? 'Sample image. Open your own photo or drop one here.' : '';
 }
 let toastTimer = 0;
 function toast(msg) {
@@ -2199,8 +2415,9 @@ async function saveProject() {
   toast('Preparing project file…');
   await new Promise(r => setTimeout(r, 30));
   const data = {
-    format: 'darkroom', version: 1, w: S.w, h: S.h, name: S.name, active: S.layers.findIndex(l => l.id === S.activeId),
-    layers: S.layers.map(L => ({ name: L.name, visible: L.visible, opacity: L.opacity, blend: L.blend, ox: L.ox, oy: L.oy, text: L.text || null, png: L.canvas.toDataURL('image/png') })),
+    format: 'darkroom', version: 2, w: S.w, h: S.h, name: S.name, active: S.layers.findIndex(l => l.id === S.activeId),
+    layers: S.layers.map(L => ({ name: L.name, visible: L.visible, opacity: L.opacity, blend: L.blend, ox: L.ox, oy: L.oy, text: L.text || null, png: L.canvas.toDataURL('image/png'), mask: L.mask ? L.mask.toDataURL('image/png') : null, maskOn: L.maskOn })),
+    channels: S.channels.map(c => ({ name: c.name, png: c.mask.toDataURL('image/png') })),
   };
   await deliver(new Blob([JSON.stringify(data)], { type: 'application/json' }), safeName(S.name) + '.darkroom.json');
 }
@@ -2210,24 +2427,28 @@ async function openProject(file) {
     if (!data || data.format !== 'darkroom' || !Array.isArray(data.layers) || !data.layers.length) throw new Error('That file is not a Darkroom project.');
     const w = data.w | 0, h = data.h | 0;
     if (w < 1 || h < 1 || w > MAX_DOC || h > MAX_DOC) throw new Error('That project has a size this editor cannot open.');
-    const built = [];
+    const built = [], chans = [], isImg = v => typeof v === 'string' && v.startsWith('data:image/');
+    const toCanvas = async src => { const img = await loadImageSrc(src), c = mk(w, h); g2(c).drawImage(img, 0, 0, w, h); return c; };
     for (const ld of data.layers.slice(0, 100)) {
-      if (typeof ld.png !== 'string' || !ld.png.startsWith('data:image/')) throw new Error('That project has a damaged layer.');
-      const img = await loadImageSrc(ld.png), c = mk(w, h); g2(c).drawImage(img, 0, 0, w, h); built.push({ ld, c });
+      if (!isImg(ld.png)) throw new Error('That project has a damaged layer.');
+      built.push({ ld, c: await toCanvas(ld.png), mc: isImg(ld.mask) ? await toCanvas(ld.mask) : null });
     }
-    installProject(w, h, data.active, built, 'Open project');
+    for (const cd of Array.isArray(data.channels) ? data.channels.slice(0, 20) : []) if (isImg(cd.png)) chans.push({ name: String(cd.name || 'Selection').slice(0, 40), c: await toCanvas(cd.png) });
+    installProject(w, h, data.active, built, 'Open project', chans);
     S.name = safeName(typeof data.name === 'string' ? data.name : file.name.replace(/\.json$/i, ''));
     toast('Project opened: ' + built.length + (built.length === 1 ? ' layer' : ' layers'));
   } catch (e) { toast(e instanceof SyntaxError ? 'That file is not a Darkroom project.' : (e.message || 'Could not open that project')); }
 }
-function installProject(w, h, active, built, label) {
+function installProject(w, h, active, built, label, chans) {
   docOp(label, () => {
     S.w = w; S.h = h;
-    S.layers = built.map(({ ld, c }) => {
+    S.channels = (chans || []).map(c => ({ id: uid++, name: c.name, mask: c.c }));
+    S.layers = built.map(({ ld, c, mc }) => {
       const L = newLayer(String(ld.name || 'Layer').slice(0, 60), c);
       L.visible = ld.visible !== false; L.opacity = Number.isFinite(+ld.opacity) ? clamp(+ld.opacity, 0, 100) : 100;
       L.blend = BLENDS.some(b => b[0] === ld.blend) ? ld.blend : 'source-over';
       L.ox = Math.round(+ld.ox) || 0; L.oy = Math.round(+ld.oy) || 0; L.text = cleanText(ld.text);
+      L.mask = mc || null; L.maskOn = ld.maskOn !== false;
       return L;
     });
     S.activeId = S.layers[clamp(active | 0, 0, S.layers.length - 1)].id;
@@ -2252,10 +2473,13 @@ async function autosaveNow() {
   if (AS.off) return;
   if (stroke || rs || pending || textEd || drag) { AS.timer = setTimeout(autosaveNow, 2000); return; }
   try {
-    const layers = S.layers.map(L => ({ name: L.name, visible: L.visible, opacity: L.opacity, blend: L.blend, ox: L.ox, oy: L.oy, text: L.text || null }));
-    const blobs = await Promise.all(S.layers.map(L => new Promise(r => L.canvas.toBlob(r, 'image/png'))));
-    layers.forEach((l, i) => { l.blob = blobs[i]; });
-    await asOp('readwrite', st => st.put({ savedAt: Date.now(), w: S.w, h: S.h, name: S.name, active: S.layers.findIndex(l => l.id === S.activeId), layers }, 'autosave'));
+    const layers = S.layers.map(L => ({ name: L.name, visible: L.visible, opacity: L.opacity, blend: L.blend, ox: L.ox, oy: L.oy, text: L.text || null, maskOn: L.maskOn }));
+    const toBlob = c => new Promise(r => c.toBlob(r, 'image/png')), n = S.layers.length;
+    const jobs = [...S.layers.map(L => toBlob(L.canvas)), ...S.layers.map(L => (L.mask ? toBlob(L.mask) : null)), ...S.channels.map(c => toBlob(c.mask))];
+    const res = await Promise.all(jobs);
+    layers.forEach((l, i) => { l.blob = res[i]; l.maskBlob = res[n + i]; });
+    const channels = S.channels.map((c, i) => ({ name: c.name, blob: res[2 * n + i] }));
+    await asOp('readwrite', st => st.put({ savedAt: Date.now(), w: S.w, h: S.h, name: S.name, active: S.layers.findIndex(l => l.id === S.activeId), layers, channels }, 'autosave'));
     $('#stSave').textContent = 'Autosaved ' + new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
   } catch (e) { AS.off = true; $('#stSave').textContent = ''; }
 }
@@ -2273,8 +2497,10 @@ async function restoreAutosave() {
   try {
     const w = rec.w | 0, h = rec.h | 0, built = [];
     if (w < 1 || h < 1 || w > MAX_DOC || h > MAX_DOC) throw new Error('size');
-    for (const ld of rec.layers.slice(0, 100)) { const bmp = await createImageBitmap(ld.blob), c = mk(w, h); g2(c).drawImage(bmp, 0, 0, w, h); built.push({ ld, c }); }
-    installProject(w, h, rec.active, built, 'Restore session');
+    const toC = async blob => { const bmp = await createImageBitmap(blob), c = mk(w, h); g2(c).drawImage(bmp, 0, 0, w, h); return c; };
+    for (const ld of rec.layers.slice(0, 100)) built.push({ ld, c: await toC(ld.blob), mc: ld.maskBlob ? await toC(ld.maskBlob) : null });
+    const chans = []; for (const cd of (rec.channels || []).slice(0, 20)) chans.push({ name: String(cd.name || 'Selection').slice(0, 40), c: await toC(cd.blob) });
+    installProject(w, h, rec.active, built, 'Restore session', chans);
     S.name = safeName(rec.name || 'restored'); toast('Session restored');
   } catch (e) { toast('Could not restore that session'); }
 }
@@ -2374,10 +2600,16 @@ function wire() {
     closeModals(); newDoc(w, h, $('#nBg').value); S.name = 'new-design';
   });
 
+  $$('#maskMenu [data-m]').forEach(b => b.addEventListener('click', () => {
+    $('#maskMenu').open = false;
+    const m = b.dataset.m;
+    if (['reveal', 'hide', 'sel', 'hidesel'].includes(m)) addMask(m); else maskCmd(m);
+  }));
+  $('#chSave').addEventListener('click', saveSelection);
   const ACTS = {
     rotcw: () => rotateDoc(1), rotccw: () => rotateDoc(-1), fliph: () => flipDoc(true), flipv: () => flipDoc(false), fit,
     resize: () => { $('#rW').value = S.w; $('#rH').value = S.h; openModal('#mResize'); },
-    selall: selAll, deselect, invert: invertSel, feather: () => askAmount('feather'), grow: () => askAmount('grow'), shrink: () => askAmount('shrink'),
+    selall: selAll, savesel: saveSelection, deselect, invert: invertSel, feather: () => askAmount('feather'), grow: () => askAmount('grow'), shrink: () => askAmount('shrink'),
     fillsel: () => editSel('fill'), clearsel: () => editSel('clear'), viacopy: () => layerViaSel(false), viacut: () => layerViaSel(true),
   };
   $$('.menu [data-act]').forEach(b => b.addEventListener('click', () => { b.closest('.menu').open = false; ACTS[b.dataset.act](); }));
@@ -2486,6 +2718,7 @@ function onKey(e) {
   }
   if (k === 'x') { swapColors(); return; }
   if (k === 'd') { setColor('fg', '#000000'); setColor('bg', '#ffffff'); return; }
+  if (e.key === '\\') { if (active() && active().mask) maskCmd('overlay'); return; }
   if (k === 'g') { selectTool(S.tool === 'bucket' ? 'gradient' : 'bucket'); return; }
   const t = TOOLS.find(t => t[2] === k); if (t) selectTool(t[0]);
 }
@@ -2524,8 +2757,8 @@ function makeSample() {
 buildRail(); buildAdjust(); buildFilters(); wire(); readTheme();
 setDoc(makeSample(), 'Sample photo'); lastDims = S.w + 'x' + S.h;
 setInterval(() => { if (S.sel && edgeA && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) { antPhase ^= 1; requestRender(); } }, 450);
-selectTool('brush'); renderLayers(); syncLayerProps(); updateUndoUI(); updateStatus(); sizeView(); fit(); refreshHist(); drawCurve(); updatePendUI(); setTimeout(checkAutosave, 400);
-if (location.hash === '#debug') window.__darkroom = { selAll, deselect, invertSel, featherSel, growShrinkSel, editSel, layerViaSel, applyGradient, wandSelect, commitSel, shapeMask, autosaveNow, checkAutosave, restoreAutosave, AS, rotateDoc, resizeDoc, cropApply, newDoc, dupLayer, mergeDown, comp, composite, S, OPT, P, H, CURVES, undo, redo, selectTool, addLayer, saveProject, openProject, applyTemplate, TEMPLATES, onAdjust, settlePending, hitTextLayer, openTextEditor, toDoc, setColor };
+selectTool('brush'); renderLayers(); syncLayerProps(); updateUndoUI(); updateStatus(); sizeView(); fit(); refreshHist(); drawCurve(); updatePendUI(); renderChannels(); setTimeout(checkAutosave, 400);
+if (location.hash === '#debug') window.__darkroom = { addMask, maskCmd, saveSelection, loadChannel, selectLayer, selAll, deselect, invertSel, featherSel, growShrinkSel, editSel, layerViaSel, applyGradient, wandSelect, commitSel, shapeMask, autosaveNow, checkAutosave, restoreAutosave, AS, rotateDoc, resizeDoc, cropApply, newDoc, dupLayer, mergeDown, comp, composite, S, OPT, P, H, CURVES, undo, redo, selectTool, addLayer, saveProject, openProject, applyTemplate, TEMPLATES, onAdjust, settlePending, hitTextLayer, openTextEditor, toDoc, setColor };
 })();
 </script>
 
